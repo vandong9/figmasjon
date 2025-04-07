@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: sans-serif; padding: 10px; }
+    textarea { width: 100%; height: 300px; }
+    button { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <textarea id="jsonOutput" readonly></textarea>
+  <button onclick="downloadJSON()">Download JSON</button>
+  <button onclick="closePlugin()">Close</button>
+
+  <script>
+    const textarea = document.getElementById('jsonOutput');
+    let jsonData = '';
+
+    // Receive JSON from plugin
+    window.onmessage = (event) => {
+      if (event.data.pluginMessage.type === 'export') {
+        jsonData = event.data.pluginMessage.data;
+        textarea.value = jsonData;
+      }
+    };
+
+    // Download JSON as a file
+    function downloadJSON() {
+      if (!jsonData) {
+        alert('No JSON data to download!');
+        return;
+      }
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'page-data.json'; // Default filename
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url); // Clean up
+    }
+
+    // Close plugin
+    function closePlugin() {
+      window.parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
+    }
+  </script>
+</body>
+</html>
