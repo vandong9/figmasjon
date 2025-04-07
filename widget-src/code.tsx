@@ -6,8 +6,50 @@ interface NodeData {
   y: number;
   width: number;
   height: number;
-  otherProperties?: Record<string, any>; // Optional additional properties
+  id: string;
+  visible: boolean;
   children?: NodeData[]; // Optional children array for nested nodes
+}
+
+// Specific node type interfaces
+interface FrameNodeData extends NodeData {
+  layoutMode?: string;
+  primaryAxisSizingMode?: string;
+  counterAxisSizingMode?: string;
+  paddingLeft?: number;
+  paddingRight?: number;
+  paddingTop?: number;
+  paddingBottom?: number;
+}
+
+interface TextNodeData extends NodeData {
+  characters: string;
+  fontSize?: number;
+  fontName?: FontName;
+  textAlignHorizontal?: string;
+  textAlignVertical?: string;
+  fills?: Paint[];
+}
+
+interface RectangleNodeData extends NodeData {
+  cornerRadius?: number;
+  fills?: Paint[];
+  strokes?: Paint[];
+  strokeWeight?: number;
+}
+
+interface ComponentNodeData extends NodeData {
+  componentId: string;
+  instanceName: string;
+}
+
+interface GroupNodeData extends NodeData {
+  // Group-specific properties can be added here
+}
+
+interface VectorNodeData extends NodeData {
+  vectorNetwork?: VectorNetwork;
+  vectorPaths?: VectorPath[];
 }
 
 interface SelectionData {
@@ -21,15 +63,80 @@ type UIMessage = { type: 'export'; data: string };
 
 // Recursively process a node and its descendants
 function processNode(node: SceneNode): NodeData {
-  const nodeData: NodeData = {
+  let nodeData: NodeData = {
     type: node.type,
     name: node.name,
     x: node.x,
     y: node.y,
     width: node.width,
     height: node.height,
-    otherProperties: Object.keys(node),
+    id: node.id,
+    visible: node.visible
   };
+
+  // Add type-specific properties based on node type
+  switch (node.type) {
+    case 'FRAME':
+    case 'INSTANCE':
+    case 'COMPONENT':
+      const frameNode = node as FrameNode | InstanceNode | ComponentNode;
+      const frameData = nodeData as FrameNodeData;
+      if ('layoutMode' in frameNode) {
+        frameData.layoutMode = frameNode.layoutMode;
+        frameData.primaryAxisSizingMode = frameNode.primaryAxisSizingMode;
+        frameData.counterAxisSizingMode = frameNode.counterAxisSizingMode;
+        frameData.paddingLeft = frameNode.paddingLeft;
+        frameData.paddingRight = frameNode.paddingRight;
+        frameData.paddingTop = frameNode.paddingTop;
+        frameData.paddingBottom = frameNode.paddingBottom;
+      }
+      nodeData = frameData;
+      break;
+      
+    case 'TEXT':
+      const textNode = node as TextNode;
+      const textData = nodeData as TextNodeData;
+      textData.characters = textNode.characters;
+      textData.fontSize = textNode.fontSize === figma.mixed ? undefined : textNode.fontSize;
+      textData.fontName = textNode.fontName === figma.mixed ? undefined : textNode.fontName;
+      textData.textAlignHorizontal = textNode.textAlignHorizontal;
+      textData.textAlignVertical = textNode.textAlignVertical;
+      textData.fills = textNode.fills === figma.mixed ? undefined : textNode.fills as Paint[];
+      nodeData = textData;
+      break;
+      
+    case 'RECTANGLE':
+      const rectNode = node as RectangleNode;
+      const rectData = nodeData as RectangleNodeData;
+      rectData.cornerRadius = rectNode.cornerRadius === figma.mixed ? undefined : rectNode.cornerRadius;
+      rectData.fills = rectNode.fills === figma.mixed ? undefined : rectNode.fills as Paint[];
+      rectData.strokes = rectNode.strokes as Paint[];
+      rectData.strokeWeight = rectNode.strokeWeight === figma.mixed ? undefined : rectNode.strokeWeight;
+      nodeData = rectData;
+      break;
+
+    case 'COMPONENT_SET':
+      const componentSetData = nodeData as ComponentNodeData;
+      componentSetData.componentId = node.id;
+      componentSetData.instanceName = node.name;
+      nodeData = componentSetData;
+      break;
+      
+    case 'COMPONENT':
+      const componentNode = node as ComponentNode;
+      const componentData = nodeData as ComponentNodeData;
+      componentData.componentId = componentNode.id;
+      componentData.instanceName = componentNode.name;
+      nodeData = componentData;
+      break;
+      
+    case 'VECTOR':
+      const vectorNode = node as VectorNode;
+      const vectorData = nodeData as VectorNodeData;
+      // Add vector-specific properties if needed
+      nodeData = vectorData;
+      break;
+  }
 
   // If the node has children, process them recursively
   if ('children' in node && node.children.length > 0) {
